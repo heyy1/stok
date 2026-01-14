@@ -1,0 +1,7 @@
+{
+  "name": "HiStock - HP Accessories Inventory",
+  "description": "A clean, modern inventory management system for phone accessories with barcode scanning and automated stock tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
