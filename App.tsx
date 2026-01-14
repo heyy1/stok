@@ -11,7 +11,6 @@ import {
   setDoc, 
   updateDoc, 
   addDoc, 
-  deleteDoc, 
   query, 
   orderBy, 
   limit,
@@ -37,7 +36,6 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [scanMode, setScanMode] = useState<TransactionType | null>(null);
   const [lastScanMessage, setLastScanMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -54,13 +52,20 @@ const App: React.FC = () => {
 
     const qTransactions = query(collection(db, "transactions"), orderBy("timestamp", "desc"), limit(50));
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as unknown as Transaction));
+      const items = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          ...data, 
+          id: doc.id,
+          timestamp: data.timestamp?.toMillis ? data.timestamp.toMillis() : Date.now()
+        } as unknown as Transaction;
+      });
       setTransactions(items);
     });
 
-    const unsubSettings = onSnapshot(doc(db, "settings", "general"), (doc) => {
-      if (doc.exists()) {
-        setCategories(doc.data().categories || INITIAL_CATEGORIES);
+    const unsubSettings = onSnapshot(doc(db, "settings", "general"), (docSnap) => {
+      if (docSnap.exists()) {
+        setCategories(docSnap.data().categories || INITIAL_CATEGORIES);
       }
     });
 
@@ -174,7 +179,6 @@ const App: React.FC = () => {
       name: formData.get('name') as string,
       category: formData.get('category') as string,
       phoneType: formData.get('phoneType') as string,
-      color: formData.get('color') as string,
       stock: parseInt(formData.get('stock') as string) || 0,
       minStock: parseInt(formData.get('minStock') as string) || 5,
       createdAt: Date.now()
@@ -240,7 +244,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 p-4 md:p-8 w-full max-w-6xl mx-auto overflow-y-auto">
         {activeTab === 'dashboard' && <DashboardView scanMode={scanMode} setScanMode={setScanMode} products={products} totalStockValue={totalStockValue} lowStockProducts={lowStockProducts} transactions={transactions} currentUser={currentUser} />}
-        {activeTab === 'inventory' && <InventoryView products={products} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterCategory={filterCategory} setFilterCategory={setFilterCategory} categories={categories} currentUser={currentUser} setIsProductModalOpen={setIsProductModalOpen} setSelectedProduct={setSelectedProduct} setIsTransactionModalOpen={setIsTransactionModalOpen} toggleSelection={(id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} selectedIds={selectedIds} generateBarcodeSvg={generateBarcodeSvg} />}
+        {activeTab === 'inventory' && <InventoryView products={products} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterCategory={filterCategory} setFilterCategory={setFilterCategory} categories={categories} currentUser={currentUser} setIsProductModalOpen={setIsProductModalOpen} setSelectedProduct={setSelectedProduct} setIsTransactionModalOpen={setIsTransactionModalOpen} toggleSelection={(id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])} selectedIds={selectedIds} generateBarcodeSvg={generateBarcodeSvg} />}
         {activeTab === 'history' && <HistoryView transactions={transactions} />}
         {activeTab === 'settings' && <SettingsView currentUser={currentUser} categories={categories} setCategories={async (newCats: string[]) => { await setDoc(doc(db, "settings", "general"), { categories: newCats }, { merge: true }); }} />}
       </main>
